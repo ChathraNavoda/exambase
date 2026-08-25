@@ -1,4 +1,4 @@
-package com.example.exambase
+package com.exambase.app
 
 import io.flutter.embedding.android.FlutterActivity
 

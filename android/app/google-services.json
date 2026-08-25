@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "949376931391",
+    "project_id": "exambase-c89b1",
+    "storage_bucket": "exambase-c89b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:949376931391:android:37d9c13e7f532710f58a8a",
+        "android_client_info": {
+          "package_name": "com.exambase.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANlBsZmo08MWTq8Ytt2HJJeWbQqjI65sU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:949376931391:android:19957187b521c627f58a8a",
+        "android_client_info": {
+          "package_name": "com.exambase.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANlBsZmo08MWTq8Ytt2HJJeWbQqjI65sU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
