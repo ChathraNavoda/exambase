@@ -1,3 +1,4 @@
+import 'package:exambase/features/dashboard/screens/role_router.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme/app_theme.dart';
@@ -23,9 +24,7 @@ class ExamBaseApp extends StatelessWidget {
           }
           if (snapshot.hasData) {
             // Logged in — placeholder until we build the dashboards
-            return const Scaffold(
-              body: Center(child: Text('Logged in! Dashboard coming next.')),
-            );
+            return RoleRouter(user: snapshot.data!);
           }
           return const LoginScreen();
         },
