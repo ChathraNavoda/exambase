@@ -140,6 +140,12 @@ class ExamService {
     });
   }
 
+  Future<void> togglePublishResults(String activityId, bool published) async {
+    await _firestore.collection('activities').doc(activityId).update({
+      'resultsPublished': published,
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> watchExamsForInstructor(String uid) {
     return _firestore
         .collection('activities')

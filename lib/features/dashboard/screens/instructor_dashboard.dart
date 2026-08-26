@@ -55,33 +55,77 @@ class InstructorDashboard extends StatelessWidget {
                     itemBuilder: (context, i) {
                       final exam = exams[i];
                       final isPublished = exam['isPublished'] == true;
+                      final resultsPublished = exam['resultsPublished'] == true;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: ListTile(
-                          title: Text(exam['title'] ?? 'Untitled Exam'),
-                          subtitle: Text(
-                            '${exam['durationMinutes']} min · ${exam['totalMarks']} marks · Code: ${exam['examCode'] ?? '—'}',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
                           ),
-                          trailing: Chip(
-                            label: Text(isPublished ? 'Published' : 'Draft'),
-                            backgroundColor: isPublished
-                                ? AppColors.success.withOpacity(0.15)
-                                : AppColors.warning.withOpacity(0.15),
-                            labelStyle: TextStyle(
-                              color: isPublished
-                                  ? AppColors.success
-                                  : AppColors.warning,
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ManageQuestionsScreen(examId: exam['id']),
+                          child: ListTile(
+                            title: Text(exam['title'] ?? 'Untitled Exam'),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                '${exam['durationMinutes']} min · ${exam['totalMarks']} marks · Code: ${exam['examCode'] ?? '—'}',
                               ),
-                            );
-                          },
+                            ),
+                            // Using OverflowBar or Row wrapped in IntrinsicWidth to prevent vertical tight constraints collision
+                            trailing: Wrap(
+                              direction: Axis.vertical,
+                              crossAxisAlignment: WrapCrossAlignment.end,
+                              spacing: 0,
+                              children: [
+                                Chip(
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  label: Text(
+                                    isPublished ? 'Published' : 'Draft',
+                                  ),
+                                  backgroundColor: isPublished
+                                      ? AppColors.success.withOpacity(0.15)
+                                      : AppColors.warning.withOpacity(0.15),
+                                  labelStyle: TextStyle(
+                                    color: isPublished
+                                        ? AppColors.success
+                                        : AppColors.warning,
+                                  ),
+                                ),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  onPressed: () async {
+                                    final newValue = !resultsPublished;
+                                    await examService.togglePublishResults(
+                                      exam['id'],
+                                      newValue,
+                                    );
+                                  },
+                                  child: Text(
+                                    resultsPublished
+                                        ? 'Results Published'
+                                        : 'Release Results',
+                                    style: TextStyle(
+                                      color: resultsPublished
+                                          ? AppColors.success
+                                          : AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ManageQuestionsScreen(examId: exam['id']),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       );
                     },

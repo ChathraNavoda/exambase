@@ -97,13 +97,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ExamResultScreen(
-          score: score,
-          totalMarks: widget.exam['totalMarks'] ?? 0,
-          autoSubmitted: auto,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => ExamResultScreen(autoSubmitted: auto)),
     );
   }
 
@@ -206,16 +200,9 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 }
 
 class ExamResultScreen extends StatelessWidget {
-  final int score;
-  final int totalMarks;
   final bool autoSubmitted;
 
-  const ExamResultScreen({
-    super.key,
-    required this.score,
-    required this.totalMarks,
-    required this.autoSubmitted,
-  });
+  const ExamResultScreen({super.key, required this.autoSubmitted});
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +221,9 @@ class ExamResultScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.md),
-            Text('$score / $totalMarks', style: AppTypography.heading2),
+            const Text(
+              'Your response has been recorded.\nResults will be released by your instructor.',
+            ),
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton(
               onPressed: () =>

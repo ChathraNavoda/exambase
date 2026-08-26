@@ -1,4 +1,5 @@
 import 'package:exambase/features/exams/screens/exam_list_screen.dart';
+import 'package:exambase/features/exams/screens/my_results_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -37,6 +38,15 @@ class StudentDashboard extends StatelessWidget {
                 );
               },
               child: const Text('View Exams'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MyResultsScreen()),
+                );
+              },
+              child: const Text('My Results'),
             ),
           ],
         ),
