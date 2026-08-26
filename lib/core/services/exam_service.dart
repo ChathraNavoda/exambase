@@ -64,6 +64,12 @@ class ExamService {
         '(${durationMinutes}min). No student could ever finish in time.',
       );
     }
+    if (windowMinutes == durationMinutes) {
+      throw Exception(
+        'Exam window exactly matches the duration, leaving no time for '
+        'students to actually start. Add a few extra minutes as buffer.',
+      );
+    }
 
     if (closeAt.isBefore(DateTime.now())) {
       throw Exception('Close time must be in the future.');
