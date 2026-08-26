@@ -1,3 +1,4 @@
+import 'package:exambase/features/exams/screens/exam_list_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -26,6 +27,17 @@ class StudentDashboard extends StatelessWidget {
             Text('Welcome back 👋', style: AppTypography.heading2),
             const SizedBox(height: AppSpacing.md),
             const Text('Your enrolled courses and exams will appear here.'),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const ExamListScreen(courseId: 'iJ9fCIOHNbtjOnlGaQ1o'),
+                  ),
+                );
+              },
+              child: const Text('View Exams'),
+            ),
           ],
         ),
       ),
