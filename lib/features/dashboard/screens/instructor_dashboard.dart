@@ -61,7 +61,7 @@ class InstructorDashboard extends StatelessWidget {
                         child: ListTile(
                           title: Text(exam['title'] ?? 'Untitled Exam'),
                           subtitle: Text(
-                            '${exam['durationMinutes']} min · ${exam['totalMarks']} marks',
+                            '${exam['durationMinutes']} min · ${exam['totalMarks']} marks · Code: ${exam['examCode'] ?? '—'}',
                           ),
                           trailing: Chip(
                             label: Text(isPublished ? 'Published' : 'Draft'),

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ExamQuestion {
@@ -42,13 +43,32 @@ class ExamService {
   final _firestore = FirebaseFirestore.instance;
 
   /// Creates a new exam (activity doc) and returns its ID.
-  Future<String> createExam({
+  ///
+  /// Validates that the [openAt]–[closeAt] window is at least as long as
+  /// [durationMinutes], so every student who starts can finish. See app
+  /// discussion: the last fair start time is `closeAt - durationMinutes`.
+  Future<Map<String, dynamic>> createExam({
     required String courseId,
     required String title,
     required String instructions,
     required int durationMinutes,
+    required DateTime openAt,
+    required DateTime closeAt,
+    required String examCode,
     required String createdBy,
   }) async {
+    final windowMinutes = closeAt.difference(openAt).inMinutes;
+    if (windowMinutes < durationMinutes) {
+      throw Exception(
+        'Exam window (${windowMinutes}min) is shorter than the exam duration '
+        '(${durationMinutes}min). No student could ever finish in time.',
+      );
+    }
+
+    if (closeAt.isBefore(DateTime.now())) {
+      throw Exception('Close time must be in the future.');
+    }
+
     final doc = await _firestore.collection('activities').add({
       'courseId': courseId,
       'type': 'mcq_exam',
@@ -57,11 +77,23 @@ class ExamService {
       'durationMinutes': durationMinutes,
       'attemptsAllowed': 1,
       'totalMarks': 0, // updated as questions are added
+      'openAt': Timestamp.fromDate(openAt),
+      'closeAt': Timestamp.fromDate(closeAt),
+      'examCode': examCode,
       'isPublished': false,
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
     });
-    return doc.id;
+
+    return {'id': doc.id};
+  }
+
+  /// Generates a short, readable random code like "A7X2K9".
+  /// Excludes visually confusing characters (0/O, 1/I).
+  String generateExamCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rand = Random.secure();
+    return List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join();
   }
 
   Future<void> addQuestion(String activityId, ExamQuestion question) async {
