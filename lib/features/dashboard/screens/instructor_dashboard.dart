@@ -1,13 +1,22 @@
+import 'package:exambase/features/exams/screens/create_exam_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/exam_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../exams/screens/manage_questions_screen.dart';
 
 class InstructorDashboard extends StatelessWidget {
   const InstructorDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final examService = ExamService();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Instructor Dashboard'),
@@ -23,11 +32,77 @@ class InstructorDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your Courses', style: AppTypography.heading2),
+            Text('Your Exams', style: AppTypography.heading2),
             const SizedBox(height: AppSpacing.md),
-            const Text('Course management and exam creation will appear here.'),
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: examService.watchExamsForInstructor(uid),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final exams = snapshot.data ?? [];
+
+                  if (exams.isEmpty) {
+                    return const Text(
+                      'No exams yet. Tap "New Exam" to create one.',
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: exams.length,
+                    itemBuilder: (context, i) {
+                      final exam = exams[i];
+                      final isPublished = exam['isPublished'] == true;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: ListTile(
+                          title: Text(exam['title'] ?? 'Untitled Exam'),
+                          subtitle: Text(
+                            '${exam['durationMinutes']} min · ${exam['totalMarks']} marks',
+                          ),
+                          trailing: Chip(
+                            label: Text(isPublished ? 'Published' : 'Draft'),
+                            backgroundColor: isPublished
+                                ? AppColors.success.withOpacity(0.15)
+                                : AppColors.warning.withOpacity(0.15),
+                            labelStyle: TextStyle(
+                              color: isPublished
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ManageQuestionsScreen(examId: exam['id']),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const CreateExamScreen(courseId: 'iJ9fCIOHNbtjOnlGaQ1o'),
+            ),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('New Exam'),
       ),
     );
   }
