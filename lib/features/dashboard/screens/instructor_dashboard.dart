@@ -1,4 +1,5 @@
 import 'package:exambase/features/exams/screens/create_exam_screen.dart';
+import 'package:exambase/features/exams/screens/results_overview_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -72,48 +73,67 @@ class InstructorDashboard extends StatelessWidget {
                               ),
                             ),
                             // Using OverflowBar or Row wrapped in IntrinsicWidth to prevent vertical tight constraints collision
-                            trailing: Wrap(
-                              direction: Axis.vertical,
-                              crossAxisAlignment: WrapCrossAlignment.end,
-                              spacing: 0,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Chip(
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  label: Text(
-                                    isPublished ? 'Published' : 'Draft',
-                                  ),
-                                  backgroundColor: isPublished
-                                      ? AppColors.success.withOpacity(0.15)
-                                      : AppColors.warning.withOpacity(0.15),
-                                  labelStyle: TextStyle(
-                                    color: isPublished
-                                        ? AppColors.success
-                                        : AppColors.warning,
-                                  ),
-                                ),
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  onPressed: () async {
-                                    final newValue = !resultsPublished;
-                                    await examService.togglePublishResults(
-                                      exam['id'],
-                                      newValue,
+                                IconButton(
+                                  icon: const Icon(Icons.bar_chart),
+                                  tooltip: 'View Results',
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => ResultsOverviewScreen(
+                                          examId: exam['id'],
+                                          examTitle: exam['title'] ?? '',
+                                        ),
+                                      ),
                                     );
                                   },
-                                  child: Text(
-                                    resultsPublished
-                                        ? 'Results Published'
-                                        : 'Release Results',
-                                    style: TextStyle(
-                                      color: resultsPublished
-                                          ? AppColors.success
-                                          : AppColors.primaryBlue,
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Chip(
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      label: Text(
+                                        isPublished ? 'Published' : 'Draft',
+                                      ),
+                                      backgroundColor: isPublished
+                                          ? AppColors.success.withOpacity(0.15)
+                                          : AppColors.warning.withOpacity(0.15),
+                                      labelStyle: TextStyle(
+                                        color: isPublished
+                                            ? AppColors.success
+                                            : AppColors.warning,
+                                      ),
                                     ),
-                                  ),
+                                    TextButton(
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                      onPressed: () async {
+                                        final newValue = !resultsPublished;
+
+                                        await examService.togglePublishResults(
+                                          exam['id'],
+                                          newValue,
+                                        );
+                                      },
+                                      child: Text(
+                                        resultsPublished
+                                            ? 'Results Published'
+                                            : 'Release Results',
+                                        style: TextStyle(
+                                          color: resultsPublished
+                                              ? AppColors.success
+                                              : AppColors.primaryBlue,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
