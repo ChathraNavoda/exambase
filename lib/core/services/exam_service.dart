@@ -156,4 +156,15 @@ class ExamService {
           (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
         );
   }
+
+  Stream<List<Map<String, dynamic>>> watchExamsForCourse(String courseId) {
+    return _firestore
+        .collection('activities')
+        .where('courseId', isEqualTo: courseId)
+        .where('type', isEqualTo: 'mcq_exam')
+        .snapshots()
+        .map(
+          (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
+        );
+  }
 }
