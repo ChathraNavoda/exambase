@@ -83,6 +83,25 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
       setState(() => _errorMessage = 'Please set an exam code.');
       return;
     }
+    if (_titleController.text.trim().length < 3) {
+      setState(
+        () => _errorMessage = 'Exam title must be at least 3 characters.',
+      );
+      return;
+    }
+    if (duration > 300) {
+      setState(
+        () => _errorMessage =
+            'Duration seems unusually long (max 300 minutes). Please check.',
+      );
+      return;
+    }
+    if (_examCodeController.text.trim().length < 4) {
+      setState(
+        () => _errorMessage = 'Exam code must be at least 4 characters.',
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 

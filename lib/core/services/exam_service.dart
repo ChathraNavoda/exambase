@@ -140,12 +140,6 @@ class ExamService {
     });
   }
 
-  Future<void> togglePublishResults(String activityId, bool published) async {
-    await _firestore.collection('activities').doc(activityId).update({
-      'resultsPublished': published,
-    });
-  }
-
   Stream<List<Map<String, dynamic>>> watchExamsForInstructor(String uid) {
     return _firestore
         .collection('activities')
@@ -166,5 +160,35 @@ class ExamService {
         .map(
           (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
         );
+  }
+
+  Future<void> deleteExam(String activityId) async {
+    // Delete all questions in the subcollection first (Firestore doesn't cascade-delete)
+    final questionsSnap = await _firestore
+        .collection('activities')
+        .doc(activityId)
+        .collection('questions')
+        .get();
+    for (final doc in questionsSnap.docs) {
+      await doc.reference.delete();
+    }
+    await _firestore.collection('activities').doc(activityId).delete();
+  }
+
+  /// Only allows releasing results after the exam's close time has passed.
+  /// Throws if called too early.
+  Future<void> togglePublishResults(
+    String activityId,
+    bool published,
+    DateTime closeAt,
+  ) async {
+    if (published && DateTime.now().isBefore(closeAt)) {
+      throw Exception(
+        'You can only release results after the exam window closes.',
+      );
+    }
+    await _firestore.collection('activities').doc(activityId).update({
+      'resultsPublished': published,
+    });
   }
 }

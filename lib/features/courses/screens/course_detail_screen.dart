@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/services/exam_service.dart';
@@ -198,10 +199,34 @@ class CourseDetailScreen extends StatelessWidget {
                                   Expanded(
                                     child: TextButton.icon(
                                       onPressed: () async {
-                                        await examService.togglePublishResults(
-                                          exam['id'],
-                                          !resultsPublished,
-                                        );
+                                        final closeAt =
+                                            (exam['closeAt'] as Timestamp)
+                                                .toDate();
+                                        try {
+                                          await examService
+                                              .togglePublishResults(
+                                                exam['id'],
+                                                !resultsPublished,
+                                                closeAt,
+                                              );
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  e.toString().replaceFirst(
+                                                    'Exception: ',
+                                                    '',
+                                                  ),
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.error,
+                                              ),
+                                            );
+                                          }
+                                        }
                                       },
                                       icon: Icon(
                                         resultsPublished
@@ -217,6 +242,56 @@ class CourseDetailScreen extends StatelessWidget {
                                         foregroundColor: resultsPublished
                                             ? AppColors.success
                                             : AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: TextButton.icon(
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (_) => AlertDialog(
+                                            title: const Text('Delete Exam?'),
+                                            content: Text(
+                                              'This will permanently delete "${exam['title']}" and all its questions and submissions data. This cannot be undone.',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      AppColors.error,
+                                                ),
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await examService.deleteExam(
+                                            exam['id'],
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: AppColors.error,
+                                      ),
+                                      label: const Text(
+                                        'Delete',
+                                        style: TextStyle(
+                                          color: AppColors.error,
+                                        ),
                                       ),
                                     ),
                                   ),

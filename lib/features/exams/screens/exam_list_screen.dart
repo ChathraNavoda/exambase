@@ -37,7 +37,6 @@ class ExamListScreen extends StatelessWidget {
               final doc = exams[i];
               final data = doc.data() as Map<String, dynamic>;
 
-              // Skip any legacy/malformed exam docs missing required scheduling fields
               if (data['openAt'] == null ||
                   data['closeAt'] == null ||
                   data['examCode'] == null) {
@@ -46,17 +45,61 @@ class ExamListScreen extends StatelessWidget {
 
               final openAt = (data['openAt'] as Timestamp).toDate();
               final closeAt = (data['closeAt'] as Timestamp).toDate();
+              final duration = data['durationMinutes'] as int;
+              final lastStart = closeAt.subtract(Duration(minutes: duration));
+              final now = DateTime.now();
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: ListTile(
-                  title: Text(data['title'] ?? ''),
-                  subtitle: Text(
-                    '${data['durationMinutes']} min · Open ${_fmt(openAt)} – ${_fmt(closeAt)}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _handleTap(context, doc.id, data),
+              return FutureBuilder<DocumentSnapshot?>(
+                future: SubmissionService().getExistingSubmission(
+                  activityId: doc.id,
+                  studentId: FirebaseAuth.instance.currentUser!.uid,
                 ),
+                builder: (context, subSnap) {
+                  final hasAttempted = subSnap.data != null;
+
+                  String status;
+                  Color statusColor;
+                  bool tappable;
+
+                  if (hasAttempted) {
+                    status = 'Completed';
+                    statusColor = AppColors.success;
+                    tappable = false;
+                  } else if (now.isBefore(openAt)) {
+                    status = 'Pending';
+                    statusColor = AppColors.textSecondary;
+                    tappable = false;
+                  } else if (now.isAfter(lastStart)) {
+                    status = 'Expired';
+                    statusColor = AppColors.error;
+                    tappable = false;
+                  } else {
+                    status = 'Open';
+                    statusColor = AppColors.primaryBlue;
+                    tappable = true;
+                  }
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: ListTile(
+                      title: Text(data['title'] ?? ''),
+                      subtitle: Text(
+                        '${data['durationMinutes']} min · Open ${_fmt(openAt)} – ${_fmt(closeAt)}',
+                      ),
+                      trailing: Chip(
+                        label: Text(status),
+                        backgroundColor: statusColor.withOpacity(0.15),
+                        labelStyle: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onTap: tappable
+                          ? () => _handleTap(context, doc.id, data)
+                          : null,
+                    ),
+                  );
+                },
               );
             },
           );

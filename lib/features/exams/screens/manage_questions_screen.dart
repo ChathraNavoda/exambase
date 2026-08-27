@@ -24,6 +24,15 @@ class _ManageQuestionsScreenState extends State<ManageQuestionsScreen> {
         _optionControllers.any((c) => c.text.trim().isEmpty)) {
       return;
     }
+    final options = _optionControllers.map((c) => c.text.trim()).toList();
+    if (options.toSet().length != options.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Options must be unique — you have a duplicate.'),
+        ),
+      );
+      return;
+    }
     setState(() => _isAdding = true);
 
     await _examService.addQuestion(
