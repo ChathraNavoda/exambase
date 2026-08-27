@@ -62,6 +62,7 @@ class SubmissionService {
       'answers': [],
       'autoScore': 0,
       'totalMarks': exam['totalMarks'] ?? 0,
+      'flags': [],
     });
 
     return doc.id;
@@ -92,5 +93,19 @@ class SubmissionService {
     });
 
     return score;
+  }
+
+  /// Logs an anti-cheat flag (e.g. tab switch / app backgrounded) onto the
+  /// submission. This is a deterrent/audit signal, not a hard block — see
+  /// app discussion on limitations of client-side detection.
+  Future<void> logFlag({
+    required String submissionId,
+    required String flagType,
+  }) async {
+    await _firestore.collection('submissions').doc(submissionId).update({
+      'flags': FieldValue.arrayUnion([
+        {'type': flagType, 'timestamp': Timestamp.now()},
+      ]),
+    });
   }
 }

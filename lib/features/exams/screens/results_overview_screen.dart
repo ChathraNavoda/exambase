@@ -104,6 +104,7 @@ class ResultsOverviewScreen extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final data = sorted[i].data() as Map<String, dynamic>;
                     final isSubmitted = data['status'] == 'submitted';
+                    final flags = (data['flags'] as List?) ?? [];
 
                     return FutureBuilder<DocumentSnapshot>(
                       future: FirebaseFirestore.instance
@@ -120,7 +121,14 @@ class ResultsOverviewScreen extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: ListTile(
                             title: Text(name),
-                            subtitle: Text(email),
+                            subtitle: Text(
+                              flags.isNotEmpty
+                                  ? '$email  ·  ⚠️ ${flags.length} flag${flags.length == 1 ? '' : 's'}'
+                                  : email,
+                              style: flags.isNotEmpty
+                                  ? const TextStyle(color: AppColors.warning)
+                                  : null,
+                            ),
                             trailing: isSubmitted
                                 ? Text(
                                     '${data['autoScore']} / ${data['totalMarks']}',

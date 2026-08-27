@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../core/services/exam_service.dart';
 import '../../../core/services/submission_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -23,7 +22,8 @@ class TakeExamScreen extends StatefulWidget {
   State<TakeExamScreen> createState() => _TakeExamScreenState();
 }
 
-class _TakeExamScreenState extends State<TakeExamScreen> {
+class _TakeExamScreenState extends State<TakeExamScreen>
+    with WidgetsBindingObserver {
   final _examService = ExamService();
   final _submissionService = SubmissionService();
 
@@ -32,6 +32,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   final Map<String, int> _answers = {};
   bool _isLoading = true;
   bool _isSubmitting = false;
+  int _tabSwitchCount = 0;
 
   late Timer _timer;
   late int _secondsRemaining;
@@ -39,9 +40,50 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _secondsRemaining = (widget.exam['durationMinutes'] as int) * 60;
     _loadQuestions();
     _startTimer();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Fires when the student leaves the app/tab: switching tabs, minimizing,
+    // backgrounding on mobile, or pulling down notifications. This is a
+    // deterrent/audit signal, not a hard block on cheating.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      _tabSwitchCount++;
+      _submissionService.logFlag(
+        submissionId: widget.submissionId,
+        flagType: 'tab_switch',
+      );
+    } else if (state == AppLifecycleState.resumed && _tabSwitchCount > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showTabSwitchWarning();
+      });
+    }
+  }
+
+  void _showTabSwitchWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Warning'),
+        content: Text(
+          'You left the exam screen ($_tabSwitchCount time${_tabSwitchCount == 1 ? '' : 's'}). '
+          'This has been recorded and may be reviewed by your instructor.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continue Exam'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadQuestions() async {
@@ -103,6 +145,7 @@ class _TakeExamScreenState extends State<TakeExamScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer.cancel();
     super.dispose();
   }
