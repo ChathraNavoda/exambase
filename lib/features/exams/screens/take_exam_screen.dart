@@ -216,7 +216,7 @@ class _TakeExamScreenState extends State<TakeExamScreen>
                       alignment: Alignment.centerLeft,
                       padding: const EdgeInsets.all(AppSpacing.md),
                       backgroundColor: isSelected
-                          ? AppColors.primaryBlue.withOpacity(0.08)
+                          ? AppColors.primaryBlue.withValues(alpha: 0.08)
                           : null,
                       side: BorderSide(
                         color: isSelected

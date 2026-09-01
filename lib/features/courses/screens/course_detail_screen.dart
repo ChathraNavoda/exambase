@@ -127,8 +127,12 @@ class CourseDetailScreen extends StatelessWidget {
                                       isPublished ? 'Published' : 'Draft',
                                     ),
                                     backgroundColor: isPublished
-                                        ? AppColors.success.withOpacity(0.15)
-                                        : AppColors.warning.withOpacity(0.15),
+                                        ? AppColors.success.withValues(
+                                            alpha: 0.15,
+                                          )
+                                        : AppColors.warning.withValues(
+                                            alpha: 0.15,
+                                          ),
                                     labelStyle: TextStyle(
                                       color: isPublished
                                           ? AppColors.success

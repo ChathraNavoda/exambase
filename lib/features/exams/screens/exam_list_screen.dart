@@ -88,7 +88,7 @@ class ExamListScreen extends StatelessWidget {
                       ),
                       trailing: Chip(
                         label: Text(status),
-                        backgroundColor: statusColor.withOpacity(0.15),
+                        backgroundColor: statusColor.withValues(alpha: 0.15),
                         labelStyle: TextStyle(
                           color: statusColor,
                           fontWeight: FontWeight.bold,

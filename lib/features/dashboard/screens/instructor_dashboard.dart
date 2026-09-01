@@ -1,9 +1,9 @@
+import 'package:exambase/features/dashboard/screens/timeline_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/course_service.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../courses/screens/create_course_screen.dart';
 import '../../courses/screens/course_detail_screen.dart';
 
@@ -22,6 +22,15 @@ class InstructorDashboard extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => AuthService().signOut(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.timeline),
+            tooltip: 'Timeline',
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const TimelineScreen()));
+            },
           ),
         ],
       ),
