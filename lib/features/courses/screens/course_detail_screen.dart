@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exambase/features/courses/screens/student_report_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/services/exam_service.dart';
@@ -26,7 +27,25 @@ class CourseDetailScreen extends StatelessWidget {
     final examService = ExamService();
 
     return Scaffold(
-      appBar: AppBar(title: Text(courseTitle)),
+      appBar: AppBar(
+        title: Text(courseTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'Students & Reports',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => StudentReportScreen(
+                    courseId: courseId,
+                    courseTitle: courseTitle,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

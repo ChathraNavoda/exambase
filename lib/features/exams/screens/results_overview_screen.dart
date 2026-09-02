@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exambase/core/services/report_service.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -17,7 +18,26 @@ class ResultsOverviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Results: $examTitle')),
+      appBar: AppBar(
+        title: Text('Results: $examTitle'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export CSV',
+            onPressed: () async {
+              final reportService = ReportService();
+              final csv = await reportService.buildExamReportCsv(
+                examId: examId,
+                examTitle: examTitle,
+              );
+              reportService.downloadCsv(
+                csv,
+                '${examTitle.replaceAll(' ', '_')}_results.csv',
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('submissions')
