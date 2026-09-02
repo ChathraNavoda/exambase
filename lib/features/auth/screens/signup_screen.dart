@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/error_banner.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -60,34 +60,44 @@ class _SignupScreenState extends State<SignupScreen> {
               children: [
                 Text(
                   'Join ExamBase',
-                  style: AppTypography.heading2,
+                  style: AppTypography.heading1,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                AppTextField(controller: _nameController, label: 'Full Name'),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Enter the access code your instructor shared with you',
+                  style: AppTypography.bodySecondary,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                AppTextField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  prefixIcon: Icons.person_outline,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   controller: _emailController,
                   label: 'Email',
                   keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.mail_outline,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   controller: _passwordController,
                   label: 'Password',
                   obscureText: true,
+                  prefixIcon: Icons.lock_outline,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   controller: _accessCodeController,
                   label: 'Course Access Code',
+                  prefixIcon: Icons.key_outlined,
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: AppColors.error),
-                  ),
+                  ErrorBanner(message: _errorMessage!),
                 ],
                 const SizedBox(height: AppSpacing.lg),
                 ElevatedButton(

@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:exambase/features/courses/screens/student_report_screen.dart';
 import 'package:flutter/material.dart';
-
 import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/copyable_code.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../exams/screens/create_exam_screen.dart';
 import '../../exams/screens/manage_questions_screen.dart';
 import '../../exams/screens/results_overview_screen.dart';
@@ -27,51 +27,28 @@ class CourseDetailScreen extends StatelessWidget {
     final examService = ExamService();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(courseTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: 'Students & Reports',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => StudentReportScreen(
-                    courseId: courseId,
-                    courseTitle: courseTitle,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(courseTitle)),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Enrollment code
+          // Enrollment code — tap to copy
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.lg),
             color: AppColors.surface,
             child: Row(
               children: [
-                const Icon(Icons.key, size: 20, color: AppColors.textSecondary),
+                const Icon(Icons.key_outlined, size: 18, color: AppColors.textSecondary),
                 const SizedBox(width: AppSpacing.sm),
-                Text('Enrollment Code: ', style: AppTypography.bodySecondary),
-                Text(
-                  accessCode,
-                  style: AppTypography.body.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('Enrollment Code', style: AppTypography.bodySecondary),
+                const Spacer(),
+                CopyableCode(code: accessCode, label: 'Enrollment code'),
               ],
             ),
           ),
 
           const Divider(height: 1),
 
-          // Exams heading
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
@@ -82,7 +59,6 @@ class CourseDetailScreen extends StatelessWidget {
             child: Text('Exams', style: AppTypography.heading2),
           ),
 
-          // Exams list
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: examService.watchExamsForCourse(courseId),
@@ -90,18 +66,11 @@ class CourseDetailScreen extends StatelessWidget {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Failed to load exams.',
-                      style: AppTypography.body,
-                    ),
-                  );
+                  return const Center(child: Text('Failed to load exams.'));
                 }
 
                 final exams = snapshot.data ?? [];
-
                 if (exams.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
@@ -114,9 +83,7 @@ class CourseDetailScreen extends StatelessWidget {
                   itemCount: exams.length,
                   itemBuilder: (context, i) {
                     final exam = exams[i];
-
                     final isPublished = exam['isPublished'] == true;
-
                     final resultsPublished = exam['resultsPublished'] == true;
 
                     return Card(
@@ -126,197 +93,136 @@ class CourseDetailScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Exam information
-                            ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                              ),
-                              title: Row(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      exam['title'] ?? 'Untitled Exam',
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(exam['title'] ?? 'Untitled Exam', style: AppTypography.heading3),
+                                        const SizedBox(height: 4),
+                                        Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: AppSpacing.xs,
+                                          runSpacing: 4,
+                                          children: [
+                                            Text(
+                                              '${exam['durationMinutes']} min · ${exam['totalMarks']} marks · ',
+                                              style: AppTypography.bodySecondary,
+                                            ),
+                                            CopyableCode(
+                                              code: exam['examCode'] ?? '—',
+                                              label: 'Exam code',
+                                              compact: true,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   const SizedBox(width: AppSpacing.sm),
-                                  Chip(
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    label: Text(
-                                      isPublished ? 'Published' : 'Draft',
-                                    ),
-                                    backgroundColor: isPublished
-                                        ? AppColors.success.withValues(
-                                            alpha: 0.15,
-                                          )
-                                        : AppColors.warning.withValues(
-                                            alpha: 0.15,
-                                          ),
-                                    labelStyle: TextStyle(
-                                      color: isPublished
-                                          ? AppColors.success
-                                          : AppColors.warning,
-                                    ),
+                                  StatusChip(
+                                    label: isPublished ? 'Published' : 'Draft',
+                                    tone: isPublished ? StatusTone.success : StatusTone.warning,
                                   ),
                                 ],
                               ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '${exam['durationMinutes']} min · '
-                                  '${exam['totalMarks']} marks · '
-                                  'Code: ${exam['examCode'] ?? '—'}',
-                                ),
-                              ),
                             ),
-
-                            const Divider(height: 1),
-
-                            // Actions
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.xs,
-                              ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Divider(height: 1),
+                            ),
+                            // Icon-only actions in a horizontally-scrollable row —
+                            // avoids the text-wrap overflow that Expanded+labels
+                            // caused on narrow screens, and degrades gracefully
+                            // to a scroll if a device is ever narrower than this.
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                               child: Row(
                                 children: [
-                                  // Questions
-                                  Expanded(
-                                    child: TextButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                ManageQuestionsScreen(
-                                                  examId: exam['id'],
-                                                ),
+                                  _ActionIcon(
+                                    icon: Icons.edit_outlined,
+                                    tooltip: 'Questions',
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ManageQuestionsScreen(examId: exam['id']),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _ActionIcon(
+                                    icon: Icons.bar_chart_outlined,
+                                    tooltip: 'Results',
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ResultsOverviewScreen(
+                                            examId: exam['id'],
+                                            examTitle: exam['title'] ?? '',
                                           ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _ActionIcon(
+                                    icon: resultsPublished ? Icons.check_circle : Icons.publish_outlined,
+                                    tooltip: resultsPublished ? 'Results Published' : 'Release Results',
+                                    color: resultsPublished ? AppColors.success : AppColors.primary,
+                                    onTap: () async {
+                                      final closeAt = (exam['closeAt'] as Timestamp).toDate();
+                                      try {
+                                        await examService.togglePublishResults(
+                                          exam['id'],
+                                          !resultsPublished,
+                                          closeAt,
                                         );
-                                      },
-                                      icon: const Icon(Icons.edit_outlined),
-                                      label: const Text('Questions'),
-                                    ),
-                                  ),
-
-                                  // Results
-                                  Expanded(
-                                    child: TextButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                ResultsOverviewScreen(
-                                                  examId: exam['id'],
-                                                  examTitle:
-                                                      exam['title'] ?? '',
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.bar_chart),
-                                      label: const Text('Results'),
-                                    ),
-                                  ),
-
-                                  // Release Results
-                                  Expanded(
-                                    child: TextButton.icon(
-                                      onPressed: () async {
-                                        final closeAt =
-                                            (exam['closeAt'] as Timestamp)
-                                                .toDate();
-                                        try {
-                                          await examService
-                                              .togglePublishResults(
-                                                exam['id'],
-                                                !resultsPublished,
-                                                closeAt,
-                                              );
-                                        } catch (e) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  e.toString().replaceFirst(
-                                                    'Exception: ',
-                                                    '',
-                                                  ),
-                                                ),
-                                                backgroundColor:
-                                                    AppColors.error,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                      icon: Icon(
-                                        resultsPublished
-                                            ? Icons.check_circle_outline
-                                            : Icons.publish_outlined,
-                                      ),
-                                      label: Text(
-                                        resultsPublished
-                                            ? 'Published'
-                                            : 'Release Results',
-                                      ),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: resultsPublished
-                                            ? AppColors.success
-                                            : AppColors.primaryBlue,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: TextButton.icon(
-                                      onPressed: () async {
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (_) => AlertDialog(
-                                            title: const Text('Delete Exam?'),
-                                            content: Text(
-                                              'This will permanently delete "${exam['title']}" and all its questions and submissions data. This cannot be undone.',
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString().replaceFirst('Exception: ', '')),
+                                              backgroundColor: AppColors.error,
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                  context,
-                                                  false,
-                                                ),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      AppColors.error,
-                                                ),
-                                                onPressed: () => Navigator.pop(
-                                                  context,
-                                                  true,
-                                                ),
-                                                child: const Text('Delete'),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirm == true) {
-                                          await examService.deleteExam(
-                                            exam['id'],
                                           );
                                         }
-                                      },
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: AppColors.error,
-                                      ),
-                                      label: const Text(
-                                        'Delete',
-                                        style: TextStyle(
-                                          color: AppColors.error,
+                                      }
+                                    },
+                                  ),
+                                  _ActionIcon(
+                                    icon: Icons.delete_outline,
+                                    tooltip: 'Delete',
+                                    color: AppColors.error,
+                                    onTap: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text('Delete Exam?'),
+                                          content: Text(
+                                            'This will permanently delete "${exam['title']}" and all its '
+                                            'questions. This cannot be undone.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                              onPressed: () => Navigator.pop(context, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                      if (confirm == true) {
+                                        await examService.deleteExam(exam['id']);
+                                      }
+                                    },
                                   ),
                                 ],
                               ),
@@ -332,18 +238,46 @@ class CourseDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-
-      // Create exam
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CreateExamScreen(courseId: courseId),
-            ),
+            MaterialPageRoute(builder: (_) => CreateExamScreen(courseId: courseId)),
           );
         },
         icon: const Icon(Icons.add),
         label: const Text('New Exam'),
+      ),
+    );
+  }
+}
+
+/// Compact icon-button-with-tooltip used for the per-exam action row.
+/// Fixed width regardless of label length, so four of these never overflow
+/// or wrap the way Expanded+TextButton.icon did.
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _ActionIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+          child: Icon(icon, size: 22, color: color ?? AppColors.textSecondary),
+        ),
       ),
     );
   }

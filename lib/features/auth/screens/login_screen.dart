@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/error_banner.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -62,14 +63,16 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const _BrandMark(),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'ExamBase',
+                  'Welcome back',
                   style: AppTypography.heading1,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Sign in to continue',
+                  'Sign in to continue to ExamBase',
                   style: AppTypography.bodySecondary,
                   textAlign: TextAlign.center,
                 ),
@@ -78,19 +81,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   label: 'Email',
                   keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.mail_outline,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
                   controller: _passwordController,
                   label: 'Password',
                   obscureText: true,
+                  prefixIcon: Icons.lock_outline,
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: AppColors.error),
-                  ),
+                  ErrorBanner(message: _errorMessage!),
                 ],
                 const SizedBox(height: AppSpacing.lg),
                 ElevatedButton(
@@ -107,13 +109,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       : const Text('Sign In'),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SignupScreen()),
-                    );
-                  },
-                  child: const Text("Don't have an account? Sign up"),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SignupScreen()),
+                      );
+                    },
+                    child: const Text("Don't have an account? Sign up"),
+                  ),
                 ),
               ],
             ),
@@ -123,3 +127,38 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+/// Small brand mark used at the top of auth screens — a rounded blue
+/// square echoing the checkmark-bracket logo, paired with the wordmark
+/// so the brand is legible even without loading the actual logo asset.
+class _BrandMark extends StatelessWidget {
+  const _BrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        RichText(
+          text: TextSpan(
+            style: AppTypography.heading2,
+            children: [
+              const TextSpan(text: 'Exam'),
+              TextSpan(text: 'Base', style: TextStyle(color: AppColors.primary)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+

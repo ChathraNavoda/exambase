@@ -5,6 +5,7 @@ class AppTextField extends StatelessWidget {
   final String label;
   final bool obscureText;
   final TextInputType keyboardType;
+  final IconData? prefixIcon;
 
   const AppTextField({
     super.key,
@@ -12,6 +13,7 @@ class AppTextField extends StatelessWidget {
     required this.label,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
+    this.prefixIcon,
   });
 
   @override
@@ -20,7 +22,10 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
+      ),
     );
   }
 }
