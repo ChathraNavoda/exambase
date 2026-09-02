@@ -5,16 +5,19 @@ import '../../../core/services/submission_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/exam_shuffle.dart';
 
 class TakeExamScreen extends StatefulWidget {
   final String examId;
   final String submissionId;
+  final int shuffleSeed;
   final Map<String, dynamic> exam;
 
   const TakeExamScreen({
     super.key,
     required this.examId,
     required this.submissionId,
+    required this.shuffleSeed,
     required this.exam,
   });
 
@@ -27,9 +30,9 @@ class _TakeExamScreenState extends State<TakeExamScreen>
   final _examService = ExamService();
   final _submissionService = SubmissionService();
 
-  List<ExamQuestion> _questions = [];
+  List<ShuffledQuestion> _shuffled = [];
   int _currentIndex = 0;
-  final Map<String, int> _answers = {};
+  final Map<String, int> _answers = {}; // questionId -> ORIGINAL option index
   bool _isLoading = true;
   bool _isSubmitting = false;
   int _tabSwitchCount = 0;
@@ -48,9 +51,6 @@ class _TakeExamScreenState extends State<TakeExamScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Fires when the student leaves the app/tab: switching tabs, minimizing,
-    // backgrounding on mobile, or pulling down notifications. This is a
-    // deterrent/audit signal, not a hard block on cheating.
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.inactive) {
@@ -90,7 +90,7 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     final stream = _examService.watchQuestions(widget.examId);
     final questions = await stream.first;
     setState(() {
-      _questions = questions;
+      _shuffled = shuffleExam(questions, widget.shuffleSeed);
       _isLoading = false;
     });
   }
@@ -112,13 +112,14 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     return '$m:$s';
   }
 
-  void _selectAnswer(int optionIndex) {
-    final q = _questions[_currentIndex];
-    setState(() => _answers[q.id!] = optionIndex);
+  void _selectAnswer(int displayedPosition) {
+    final sq = _shuffled[_currentIndex];
+    final originalIndex = sq.originalIndexFor(displayedPosition);
+    setState(() => _answers[sq.original.id!] = originalIndex);
   }
 
   void _next() {
-    if (_currentIndex < _questions.length - 1) {
+    if (_currentIndex < _shuffled.length - 1) {
       setState(() => _currentIndex++);
     } else {
       _submit(auto: false);
@@ -130,9 +131,9 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     setState(() => _isSubmitting = true);
     _timer.cancel();
 
-    final score = await _submissionService.submitExam(
+    await _submissionService.submitExam(
       submissionId: widget.submissionId,
-      questions: _questions,
+      questions: _shuffled.map((s) => s.original).toList(),
       answers: _answers,
     );
 
@@ -155,22 +156,25 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (_questions.isEmpty) {
+    if (_shuffled.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('This exam has no questions yet.')),
       );
     }
 
-    final q = _questions[_currentIndex];
-    final selected = _answers[q.id];
-    final isLast = _currentIndex == _questions.length - 1;
+    final sq = _shuffled[_currentIndex];
+    final selectedOriginal = _answers[sq.original.id];
+    final selectedDisplayedPosition = selectedOriginal == null
+        ? null
+        : sq.optionOrder.indexOf(selectedOriginal);
+    final isLast = _currentIndex == _shuffled.length - 1;
+    final displayedOptions = sq.displayedOptions;
 
     return PopScope(
-      canPop:
-          false, // block back navigation entirely — sequential, no going back
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Question ${_currentIndex + 1} of ${_questions.length}'),
+          title: Text('Question ${_currentIndex + 1} of ${_shuffled.length}'),
           automaticallyImplyLeading: false,
           actions: [
             Padding(
@@ -201,13 +205,13 @@ class _TakeExamScreenState extends State<TakeExamScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LinearProgressIndicator(
-                value: (_currentIndex + 1) / _questions.length,
+                value: (_currentIndex + 1) / _shuffled.length,
               ),
               const SizedBox(height: AppSpacing.xl),
-              Text(q.questionText, style: AppTypography.heading2),
+              Text(sq.original.questionText, style: AppTypography.heading2),
               const SizedBox(height: AppSpacing.lg),
-              ...List.generate(q.options.length, (i) {
-                final isSelected = selected == i;
+              ...List.generate(displayedOptions.length, (i) {
+                final isSelected = selectedDisplayedPosition == i;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: OutlinedButton(
@@ -216,7 +220,7 @@ class _TakeExamScreenState extends State<TakeExamScreen>
                       alignment: Alignment.centerLeft,
                       padding: const EdgeInsets.all(AppSpacing.md),
                       backgroundColor: isSelected
-                          ? AppColors.primaryBlue.withValues(alpha: 0.08)
+                          ? AppColors.primaryBlue.withOpacity(0.08)
                           : null,
                       side: BorderSide(
                         color: isSelected
@@ -225,13 +229,15 @@ class _TakeExamScreenState extends State<TakeExamScreen>
                         width: isSelected ? 2 : 1,
                       ),
                     ),
-                    child: Text(q.options[i]),
+                    child: Text(displayedOptions[i]),
                   ),
                 );
               }),
               const Spacer(),
               ElevatedButton(
-                onPressed: (_isSubmitting || selected == null) ? null : _next,
+                onPressed: (_isSubmitting || selectedDisplayedPosition == null)
+                    ? null
+                    : _next,
                 child: Text(isLast ? 'Submit Exam' : 'Next Question'),
               ),
             ],
@@ -244,7 +250,6 @@ class _TakeExamScreenState extends State<TakeExamScreen>
 
 class ExamResultScreen extends StatelessWidget {
   final bool autoSubmitted;
-
   const ExamResultScreen({super.key, required this.autoSubmitted});
 
   @override

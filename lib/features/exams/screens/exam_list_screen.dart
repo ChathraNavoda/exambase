@@ -159,7 +159,7 @@ class ExamListScreen extends StatelessWidget {
     if (code == null || code.trim().isEmpty || !context.mounted) return;
 
     try {
-      final submissionId = await submissionService.startExam(
+      final result = await submissionService.startExam(
         exam: exam,
         activityId: examId,
         studentId: studentId,
@@ -172,7 +172,8 @@ class ExamListScreen extends StatelessWidget {
           MaterialPageRoute(
             builder: (_) => TakeExamScreen(
               examId: examId,
-              submissionId: submissionId,
+              submissionId: result['submissionId'],
+              shuffleSeed: result['shuffleSeed'],
               exam: exam,
             ),
           ),

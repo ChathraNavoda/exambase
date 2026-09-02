@@ -21,7 +21,7 @@ class SubmissionService {
   /// Verifies the exam code, checks the time window, and creates a new
   /// in-progress submission. Throws Exception with a user-facing message
   /// if anything is invalid.
-  Future<String> startExam({
+  Future<Map<String, dynamic>> startExam({
     required Map<String, dynamic> exam,
     required String activityId,
     required String studentId,
@@ -53,6 +53,9 @@ class SubmissionService {
       throw Exception('You have already attempted this exam.');
     }
 
+    final shuffleSeed =
+        DateTime.now().microsecondsSinceEpoch & 0x7FFFFFFF; // positive int seed
+
     final doc = await _firestore.collection('submissions').add({
       'activityId': activityId,
       'studentId': studentId,
@@ -63,9 +66,10 @@ class SubmissionService {
       'autoScore': 0,
       'totalMarks': exam['totalMarks'] ?? 0,
       'flags': [],
+      'shuffleSeed': shuffleSeed,
     });
 
-    return doc.id;
+    return {'submissionId': doc.id, 'shuffleSeed': shuffleSeed};
   }
 
   /// Grades and finalizes the submission based on the given answers.
