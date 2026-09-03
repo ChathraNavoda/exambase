@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/course_service.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/notification_bell_icon.dart';
 import '../../exams/screens/exam_list_screen.dart';
 import '../../exams/screens/my_results_screen.dart';
+import '../../profile/screens/student_profile_screen.dart';
 
 class StudentDashboard extends StatelessWidget {
   const StudentDashboard({super.key});
@@ -18,12 +20,22 @@ class StudentDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Courses'),
         actions: [
+          NotificationBellIcon(studentId: uid),
           IconButton(
             icon: const Icon(Icons.assessment_outlined),
             tooltip: 'My Results',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MyResultsScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StudentProfileScreen()),
               );
             },
           ),

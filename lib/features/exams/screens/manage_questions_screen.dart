@@ -1,3 +1,4 @@
+import 'package:exambase/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -162,6 +163,9 @@ class _ManageQuestionsScreenState extends State<ManageQuestionsScreen> {
                   OutlinedButton(
                     onPressed: () async {
                       await _examService.togglePublish(widget.examId, true);
+                      await NotificationService().notifyExamPublished(
+                        examId: widget.examId,
+                      );
                       if (mounted) Navigator.of(context).pop();
                     },
                     child: const Text('Publish Exam'),

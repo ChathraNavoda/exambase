@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../core/services/submission_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/announcements_icon_button.dart';
+import '../../../shared/widgets/latest_announcement_banner.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import 'take_exam_screen.dart';
 
@@ -14,96 +16,120 @@ class ExamListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Exams')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('activities')
-            .where('courseId', isEqualTo: courseId)
-            .where('type', isEqualTo: 'mcq_exam')
-            .where('isPublished', isEqualTo: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final exams = snapshot.data!.docs;
-          if (exams.isEmpty) {
-            return const Center(child: Text('No exams available yet.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: exams.length,
-            itemBuilder: (context, i) {
-              final doc = exams[i];
-              final data = doc.data() as Map<String, dynamic>;
+      appBar: AppBar(
+        title: const Text('Exams'),
+        actions: [
+          AnnouncementsIconButton(
+            courseId: courseId,
+            courseTitle: '',
+            isInstructor: false,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          LatestAnnouncementBanner(
+            courseId: courseId,
+            courseTitle: '',
+            isInstructor: false,
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('activities')
+                  .where('courseId', isEqualTo: courseId)
+                  .where('type', isEqualTo: 'mcq_exam')
+                  .where('isPublished', isEqualTo: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final exams = snapshot.data!.docs;
+                if (exams.isEmpty) {
+                  return const Center(child: Text('No exams available yet.'));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  itemCount: exams.length,
+                  itemBuilder: (context, i) {
+                    final doc = exams[i];
+                    final data = doc.data() as Map<String, dynamic>;
 
-              if (data['openAt'] == null ||
-                  data['closeAt'] == null ||
-                  data['examCode'] == null) {
-                return const SizedBox.shrink();
-              }
+                    if (data['openAt'] == null ||
+                        data['closeAt'] == null ||
+                        data['examCode'] == null) {
+                      return const SizedBox.shrink();
+                    }
 
-              final openAt = (data['openAt'] as Timestamp).toDate();
-              final closeAt = (data['closeAt'] as Timestamp).toDate();
-              final duration = data['durationMinutes'] as int;
-              final lastStart = closeAt.subtract(Duration(minutes: duration));
-              final now = DateTime.now();
+                    final openAt = (data['openAt'] as Timestamp).toDate();
+                    final closeAt = (data['closeAt'] as Timestamp).toDate();
+                    final duration = data['durationMinutes'] as int;
+                    final lastStart = closeAt.subtract(
+                      Duration(minutes: duration),
+                    );
+                    final now = DateTime.now();
 
-              return FutureBuilder<DocumentSnapshot?>(
-                future: SubmissionService().getExistingSubmission(
-                  activityId: doc.id,
-                  studentId: FirebaseAuth.instance.currentUser!.uid,
-                ),
-                builder: (context, subSnap) {
-                  final hasAttempted = subSnap.data != null;
-
-                  String status;
-                  Color statusColor;
-                  bool tappable;
-
-                  if (hasAttempted) {
-                    status = 'Completed';
-                    statusColor = AppColors.success;
-                    tappable = false;
-                  } else if (now.isBefore(openAt)) {
-                    status = 'Pending';
-                    statusColor = AppColors.textSecondary;
-                    tappable = false;
-                  } else if (now.isAfter(lastStart)) {
-                    status = 'Expired';
-                    statusColor = AppColors.error;
-                    tappable = false;
-                  } else {
-                    status = 'Open';
-                    statusColor = AppColors.primaryBlue;
-                    tappable = true;
-                  }
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: ListTile(
-                      title: Text(data['title'] ?? ''),
-                      subtitle: Text(
-                        '${data['durationMinutes']} min · Open ${_fmt(openAt)} – ${_fmt(closeAt)}',
+                    return FutureBuilder<DocumentSnapshot?>(
+                      future: SubmissionService().getExistingSubmission(
+                        activityId: doc.id,
+                        studentId: FirebaseAuth.instance.currentUser!.uid,
                       ),
-                      trailing: Chip(
-                        label: Text(status),
-                        backgroundColor: statusColor.withValues(alpha: 0.15),
-                        labelStyle: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onTap: tappable
-                          ? () => _handleTap(context, doc.id, data)
-                          : null,
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+                      builder: (context, subSnap) {
+                        final hasAttempted = subSnap.data != null;
+
+                        String status;
+                        Color statusColor;
+                        bool tappable;
+
+                        if (hasAttempted) {
+                          status = 'Completed';
+                          statusColor = AppColors.success;
+                          tappable = false;
+                        } else if (now.isBefore(openAt)) {
+                          status = 'Pending';
+                          statusColor = AppColors.textSecondary;
+                          tappable = false;
+                        } else if (now.isAfter(lastStart)) {
+                          status = 'Expired';
+                          statusColor = AppColors.error;
+                          tappable = false;
+                        } else {
+                          status = 'Open';
+                          statusColor = AppColors.primaryBlue;
+                          tappable = true;
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: ListTile(
+                            title: Text(data['title'] ?? ''),
+                            subtitle: Text(
+                              '${data['durationMinutes']} min · Open ${_fmt(openAt)} – ${_fmt(closeAt)}',
+                            ),
+                            trailing: Chip(
+                              label: Text(status),
+                              backgroundColor: statusColor.withValues(
+                                alpha: 0.15,
+                              ),
+                              labelStyle: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onTap: tappable
+                                ? () => _handleTap(context, doc.id, data)
+                                : null,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -119,7 +145,6 @@ class ExamListScreen extends StatelessWidget {
     final studentId = FirebaseAuth.instance.currentUser!.uid;
     final submissionService = SubmissionService();
 
-    // Already attempted?
     final existing = await submissionService.getExistingSubmission(
       activityId: examId,
       studentId: studentId,

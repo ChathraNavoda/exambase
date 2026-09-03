@@ -1,67 +1,58 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../core/services/course_service.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
+import 'course_results_screen.dart';
 
 class MyResultsScreen extends StatelessWidget {
   const MyResultsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final studentId = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final courseService = CourseService();
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Results')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('submissions')
-            .where('studentId', isEqualTo: studentId)
-            .where('status', isEqualTo: 'submitted')
-            .snapshots(),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: courseService.watchCoursesForStudent(uid),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final submissions = snapshot.data!.docs;
-          if (submissions.isEmpty) {
-            return const Center(child: Text('No submitted exams yet.'));
+          final courses = snapshot.data ?? [];
+          if (courses.isEmpty) {
+            return const Center(
+              child: Text('You are not enrolled in any courses yet.'),
+            );
           }
-
           return ListView.builder(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: submissions.length,
+            itemCount: courses.length,
             itemBuilder: (context, i) {
-              final sub = submissions[i].data() as Map<String, dynamic>;
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('activities')
-                    .doc(sub['activityId'])
-                    .get(),
-                builder: (context, examSnap) {
-                  if (!examSnap.hasData) return const SizedBox.shrink();
-                  final exam = examSnap.data!.data() as Map<String, dynamic>?;
-                  if (exam == null) return const SizedBox.shrink();
-
-                  final published = exam['resultsPublished'] == true;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: ListTile(
-                      title: Text(exam['title'] ?? ''),
-                      trailing: published
-                          ? Text(
-                              '${sub['autoScore']} / ${sub['totalMarks']}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : const Text(
-                              'Pending',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                    ),
-                  );
-                },
+              final course = courses[i];
+              return Card(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: ListTile(
+                  leading: const Icon(Icons.school_outlined),
+                  title: Text(
+                    course['title'] ?? 'Untitled Course',
+                    style: AppTypography.bodyMedium,
+                  ),
+                  subtitle: const Text('Tap to view your results'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CourseResultsScreen(
+                          courseId: course['id'],
+                          courseTitle: course['title'] ?? '',
+                        ),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           );

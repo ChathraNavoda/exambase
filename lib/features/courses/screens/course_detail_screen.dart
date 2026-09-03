@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exambase/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/announcements_icon_button.dart';
+import '../../../shared/widgets/latest_announcement_banner.dart';
 import '../../../shared/widgets/copyable_code.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../exams/screens/create_exam_screen.dart';
@@ -27,7 +30,16 @@ class CourseDetailScreen extends StatelessWidget {
     final examService = ExamService();
 
     return Scaffold(
-      appBar: AppBar(title: Text(courseTitle)),
+      appBar: AppBar(
+        title: Text(courseTitle),
+        actions: [
+          AnnouncementsIconButton(
+            courseId: courseId,
+            courseTitle: courseTitle,
+            isInstructor: true,
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,13 +50,23 @@ class CourseDetailScreen extends StatelessWidget {
             color: AppColors.surface,
             child: Row(
               children: [
-                const Icon(Icons.key_outlined, size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.key_outlined,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Text('Enrollment Code', style: AppTypography.bodySecondary),
                 const Spacer(),
                 CopyableCode(code: accessCode, label: 'Enrollment code'),
               ],
             ),
+          ),
+
+          LatestAnnouncementBanner(
+            courseId: courseId,
+            courseTitle: courseTitle,
+            isInstructor: true,
           ),
 
           const Divider(height: 1),
@@ -94,24 +116,32 @@ class CourseDetailScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                              ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(exam['title'] ?? 'Untitled Exam', style: AppTypography.heading3),
+                                        Text(
+                                          exam['title'] ?? 'Untitled Exam',
+                                          style: AppTypography.heading3,
+                                        ),
                                         const SizedBox(height: 4),
                                         Wrap(
-                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
                                           spacing: AppSpacing.xs,
                                           runSpacing: 4,
                                           children: [
                                             Text(
                                               '${exam['durationMinutes']} min · ${exam['totalMarks']} marks · ',
-                                              style: AppTypography.bodySecondary,
+                                              style:
+                                                  AppTypography.bodySecondary,
                                             ),
                                             CopyableCode(
                                               code: exam['examCode'] ?? '—',
@@ -126,22 +156,24 @@ class CourseDetailScreen extends StatelessWidget {
                                   const SizedBox(width: AppSpacing.sm),
                                   StatusChip(
                                     label: isPublished ? 'Published' : 'Draft',
-                                    tone: isPublished ? StatusTone.success : StatusTone.warning,
+                                    tone: isPublished
+                                        ? StatusTone.success
+                                        : StatusTone.warning,
                                   ),
                                 ],
                               ),
                             ),
                             const Padding(
-                              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              padding: EdgeInsets.symmetric(
+                                vertical: AppSpacing.sm,
+                              ),
                               child: Divider(height: 1),
                             ),
-                            // Icon-only actions in a horizontally-scrollable row —
-                            // avoids the text-wrap overflow that Expanded+labels
-                            // caused on narrow screens, and degrades gracefully
-                            // to a scroll if a device is ever narrower than this.
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xs,
+                              ),
                               child: Row(
                                 children: [
                                   _ActionIcon(
@@ -150,7 +182,9 @@ class CourseDetailScreen extends StatelessWidget {
                                     onTap: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (_) => ManageQuestionsScreen(examId: exam['id']),
+                                          builder: (_) => ManageQuestionsScreen(
+                                            examId: exam['id'],
+                                          ),
                                         ),
                                       );
                                     },
@@ -170,22 +204,44 @@ class CourseDetailScreen extends StatelessWidget {
                                     },
                                   ),
                                   _ActionIcon(
-                                    icon: resultsPublished ? Icons.check_circle : Icons.publish_outlined,
-                                    tooltip: resultsPublished ? 'Results Published' : 'Release Results',
-                                    color: resultsPublished ? AppColors.success : AppColors.primary,
+                                    icon: resultsPublished
+                                        ? Icons.check_circle
+                                        : Icons.publish_outlined,
+                                    tooltip: resultsPublished
+                                        ? 'Results Published'
+                                        : 'Release Results',
+                                    color: resultsPublished
+                                        ? AppColors.success
+                                        : AppColors.primary,
                                     onTap: () async {
-                                      final closeAt = (exam['closeAt'] as Timestamp).toDate();
+                                      final closeAt =
+                                          (exam['closeAt'] as Timestamp)
+                                              .toDate();
                                       try {
                                         await examService.togglePublishResults(
                                           exam['id'],
                                           !resultsPublished,
                                           closeAt,
                                         );
+                                        if (!resultsPublished) {
+                                          // Only notify when actually releasing (not when un-publishing)
+                                          await NotificationService()
+                                              .notifyResultsReleased(
+                                                examId: exam['id'],
+                                              );
+                                        }
                                       } catch (e) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
-                                              content: Text(e.toString().replaceFirst('Exception: ', '')),
+                                              content: Text(
+                                                e.toString().replaceFirst(
+                                                  'Exception: ',
+                                                  '',
+                                                ),
+                                              ),
                                               backgroundColor: AppColors.error,
                                             ),
                                           );
@@ -208,19 +264,26 @@ class CourseDetailScreen extends StatelessWidget {
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(context, false),
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
                                               child: const Text('Cancel'),
                                             ),
                                             ElevatedButton(
-                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                                              onPressed: () => Navigator.pop(context, true),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    AppColors.error,
+                                              ),
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
                                               child: const Text('Delete'),
                                             ),
                                           ],
                                         ),
                                       );
                                       if (confirm == true) {
-                                        await examService.deleteExam(exam['id']);
+                                        await examService.deleteExam(
+                                          exam['id'],
+                                        );
                                       }
                                     },
                                   ),
@@ -241,7 +304,9 @@ class CourseDetailScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => CreateExamScreen(courseId: courseId)),
+            MaterialPageRoute(
+              builder: (_) => CreateExamScreen(courseId: courseId),
+            ),
           );
         },
         icon: const Icon(Icons.add),
@@ -251,9 +316,6 @@ class CourseDetailScreen extends StatelessWidget {
   }
 }
 
-/// Compact icon-button-with-tooltip used for the per-exam action row.
-/// Fixed width regardless of label length, so four of these never overflow
-/// or wrap the way Expanded+TextButton.icon did.
 class _ActionIcon extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -275,7 +337,10 @@ class _ActionIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
           child: Icon(icon, size: 22, color: color ?? AppColors.textSecondary),
         ),
       ),
