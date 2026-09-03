@@ -125,4 +125,25 @@ class NotificationService {
     }
     await batch.commit();
   }
+
+  Future<void> markCourseAnnouncementsRead(
+    String studentId,
+    String courseId,
+  ) async {
+    final snap = await _firestore
+        .collection('notifications')
+        .where('studentId', isEqualTo: studentId)
+        .where('courseId', isEqualTo: courseId)
+        .where('type', isEqualTo: 'announcement')
+        .where('read', isEqualTo: false)
+        .get();
+
+    if (snap.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'read': true});
+    }
+    await batch.commit();
+  }
 }

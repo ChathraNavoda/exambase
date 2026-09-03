@@ -1,7 +1,10 @@
-import 'package:exambase/shared/widgets/announcements_feed.dart';
+import 'package:exambase/core/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../core/services/announcement_service.dart';
+import '../../../shared/widgets/announcements_feed.dart';
 
-class AnnouncementsScreen extends StatelessWidget {
+class AnnouncementsScreen extends StatefulWidget {
   final String courseId;
   final String courseTitle;
   final bool isInstructor;
@@ -14,14 +17,32 @@ class AnnouncementsScreen extends StatelessWidget {
   });
 
   @override
+  State<AnnouncementsScreen> createState() => _AnnouncementsScreenState();
+}
+
+class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isInstructor) {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      AnnouncementService().markCourseViewed(uid, widget.courseId);
+      NotificationService().markCourseAnnouncementsRead(uid, widget.courseId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Announcements · $courseTitle')),
-      body: AnnouncementsFeed(courseId: courseId, isInstructor: isInstructor),
-      floatingActionButton: isInstructor
+      appBar: AppBar(title: Text('Announcements · ${widget.courseTitle}')),
+      body: AnnouncementsFeed(
+        courseId: widget.courseId,
+        isInstructor: widget.isInstructor,
+      ),
+      floatingActionButton: widget.isInstructor
           ? FloatingActionButton.extended(
               onPressed: () =>
-                  AnnouncementsFeed.showComposeSheet(context, courseId),
+                  AnnouncementsFeed.showComposeSheet(context, widget.courseId),
               icon: const Icon(Icons.add),
               label: const Text('New Announcement'),
             )

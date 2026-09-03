@@ -36,6 +36,12 @@ class AnnouncementService {
     await _firestore.collection('notices').doc(id).update({'pinned': pinned});
   }
 
+  Future<void> markCourseViewed(String studentId, String courseId) async {
+    await _firestore.collection('users').doc(studentId).update({
+      'courseAnnouncementViews.$courseId': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> watchAnnouncementsForCourse(
     String courseId,
   ) {
