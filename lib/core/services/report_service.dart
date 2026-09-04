@@ -1,6 +1,7 @@
-import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:exambase/core/services/csv_downloader_stub.dart';
 
+// keep dart:html import but only use it behind a kIsWeb check via conditional import — see below
 class ReportService {
   final _firestore = FirebaseFirestore.instance;
 
@@ -123,11 +124,6 @@ class ReportService {
 
   /// Triggers a browser download of the given CSV content. Web only.
   void downloadCsv(String csvContent, String filename) {
-    final bytes = html.Blob([csvContent], 'text/csv');
-    final url = html.Url.createObjectUrlFromBlob(bytes);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    downloadCsvPlatform(csvContent, filename);
   }
 }

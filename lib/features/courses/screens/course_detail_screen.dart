@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exambase/core/services/notification_service.dart';
+import 'package:exambase/features/courses/screens/student_report_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -33,6 +34,20 @@ class CourseDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(courseTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'Students & Reports',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => StudentReportScreen(
+                    courseId: courseId,
+                    courseTitle: courseTitle,
+                  ),
+                ),
+              );
+            },
+          ),
           AnnouncementsIconButton(
             courseId: courseId,
             courseTitle: courseTitle,
