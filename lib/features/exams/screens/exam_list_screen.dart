@@ -170,7 +170,11 @@ class ExamListScreen extends StatelessWidget {
         return;
       }
 
-      // In-progress — resume instead of blocking, no code re-entry needed.
+      // In-progress — resume instead of blocking.
+      await submissionService.logFlag(
+        submissionId: existing.id,
+        flagType: 'resumed_session',
+      );
       if (context.mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(

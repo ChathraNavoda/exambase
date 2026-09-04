@@ -61,6 +61,24 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     // If time already ran out while they were away, submit immediately.
     if (_secondsRemaining <= 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _submit(auto: true));
+    } else if (widget.startedAt != null) {
+      // Resuming with time left — be transparent that the clock kept
+      // running and previous selections on this attempt weren't saved.
+      // This is itself a mild deterrent: a student weighing "refresh to
+      // go look something up" sees plainly that it isn't a free pause.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Resumed. Your timer kept running while you were away, '
+                'and previous answers on this attempt were not saved.',
+              ),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      });
     }
   }
 
