@@ -76,16 +76,22 @@ class ExamListScreen extends StatelessWidget {
                         studentId: FirebaseAuth.instance.currentUser!.uid,
                       ),
                       builder: (context, subSnap) {
-                        final hasAttempted = subSnap.data != null;
+                        final existingData =
+                            subSnap.data?.data() as Map<String, dynamic>?;
+                        final status0 = existingData?['status'];
 
                         String status;
                         Color statusColor;
                         bool tappable;
 
-                        if (hasAttempted) {
+                        if (status0 == 'submitted') {
                           status = 'Completed';
                           statusColor = AppColors.success;
                           tappable = false;
+                        } else if (status0 == 'in_progress') {
+                          status = 'Resume';
+                          statusColor = AppColors.warning;
+                          tappable = true; // tapping resumes
                         } else if (now.isBefore(openAt)) {
                           status = 'Pending';
                           statusColor = AppColors.textSecondary;
@@ -149,11 +155,32 @@ class ExamListScreen extends StatelessWidget {
       activityId: examId,
       studentId: studentId,
     );
+
     if (existing != null) {
+      final data = existing.data() as Map<String, dynamic>;
+
+      if (data['status'] == 'submitted') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have already attempted this exam.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      // In-progress — resume instead of blocking, no code re-entry needed.
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You have already attempted this exam.'),
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TakeExamScreen(
+              examId: examId,
+              submissionId: existing.id,
+              shuffleSeed: data['shuffleSeed'] ?? 0,
+              exam: exam,
+              startedAt: (data['startedAt'] as Timestamp?)?.toDate(),
+            ),
           ),
         );
       }
@@ -200,6 +227,7 @@ class ExamListScreen extends StatelessWidget {
               submissionId: result['submissionId'],
               shuffleSeed: result['shuffleSeed'],
               exam: exam,
+              startedAt: null, // fresh start, TakeExamScreen uses full duration
             ),
           ),
         );

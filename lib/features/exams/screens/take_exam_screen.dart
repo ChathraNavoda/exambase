@@ -12,6 +12,7 @@ class TakeExamScreen extends StatefulWidget {
   final String submissionId;
   final int shuffleSeed;
   final Map<String, dynamic> exam;
+  final DateTime? startedAt; // null = fresh start, non-null = resuming
 
   const TakeExamScreen({
     super.key,
@@ -19,6 +20,7 @@ class TakeExamScreen extends StatefulWidget {
     required this.submissionId,
     required this.shuffleSeed,
     required this.exam,
+    this.startedAt,
   });
 
   @override
@@ -44,9 +46,22 @@ class _TakeExamScreenState extends State<TakeExamScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _secondsRemaining = (widget.exam['durationMinutes'] as int) * 60;
+
+    final totalSeconds = (widget.exam['durationMinutes'] as int) * 60;
+    if (widget.startedAt != null) {
+      final elapsed = DateTime.now().difference(widget.startedAt!).inSeconds;
+      _secondsRemaining = (totalSeconds - elapsed).clamp(0, totalSeconds);
+    } else {
+      _secondsRemaining = totalSeconds;
+    }
+
     _loadQuestions();
     _startTimer();
+
+    // If time already ran out while they were away, submit immediately.
+    if (_secondsRemaining <= 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _submit(auto: true));
+    }
   }
 
   @override
