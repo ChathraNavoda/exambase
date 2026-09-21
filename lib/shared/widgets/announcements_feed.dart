@@ -136,8 +136,9 @@ class AnnouncementsFeed extends StatelessWidget {
                                     ],
                                   ),
                                 );
-                                if (confirm == true)
+                                if (confirm == true) {
                                   await service.deleteAnnouncement(item['id']);
+                                }
                               }
                             },
                             itemBuilder: (context) => [
@@ -237,8 +238,9 @@ class AnnouncementsFeed extends StatelessWidget {
                           ? null
                           : () async {
                               if (titleController.text.trim().isEmpty ||
-                                  messageController.text.trim().isEmpty)
+                                  messageController.text.trim().isEmpty) {
                                 return;
+                              }
                               setSheetState(() => isPosting = true);
                               final uid =
                                   FirebaseAuth.instance.currentUser!.uid;
@@ -249,8 +251,9 @@ class AnnouncementsFeed extends StatelessWidget {
                                 createdBy: uid,
                                 pinned: pinned,
                               );
-                              if (sheetContext.mounted)
+                              if (sheetContext.mounted) {
                                 Navigator.pop(sheetContext);
+                              }
                             },
                       child: isPosting
                           ? const SizedBox(
