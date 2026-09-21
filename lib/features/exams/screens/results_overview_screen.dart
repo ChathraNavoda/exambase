@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exambase/core/services/report_service.dart';
 import 'package:flutter/material.dart';
+import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -38,133 +39,210 @@ class ResultsOverviewScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('submissions')
-            .where('activityId', isEqualTo: examId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('activities')
+            .doc(examId)
+            .get(),
+        builder: (context, examSnap) {
+          if (!examSnap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
+          final exam = examSnap.data!.data() as Map<String, dynamic>? ?? {};
+          final gradeBands =
+              (exam['gradeBands'] as List?) ?? ExamService.defaultGradeBands;
 
-          final submissions = snapshot.data!.docs;
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('submissions')
+                .where('activityId', isEqualTo: examId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          if (submissions.isEmpty) {
-            return const Center(child: Text('No submissions yet.'));
-          }
+              final submissions = snapshot.data!.docs;
 
-          // Sort: submitted first (by score desc), then in-progress
-          final sorted = [...submissions]
-            ..sort((a, b) {
-              final aData = a.data() as Map<String, dynamic>;
-              final bData = b.data() as Map<String, dynamic>;
-              final aSubmitted = aData['status'] == 'submitted';
-              final bSubmitted = bData['status'] == 'submitted';
-              if (aSubmitted != bSubmitted) return aSubmitted ? -1 : 1;
-              final aScore = aData['autoScore'] ?? 0;
-              final bScore = bData['autoScore'] ?? 0;
-              return (bScore as int).compareTo(aScore as int);
-            });
+              if (submissions.isEmpty) {
+                return const Center(child: Text('No submissions yet.'));
+              }
 
-          final submittedCount = submissions
-              .where(
-                (d) =>
-                    (d.data() as Map<String, dynamic>)['status'] == 'submitted',
-              )
-              .length;
-          final scores = submissions
-              .where(
-                (d) =>
-                    (d.data() as Map<String, dynamic>)['status'] == 'submitted',
-              )
-              .map(
-                (d) =>
-                    (d.data() as Map<String, dynamic>)['autoScore'] as int? ??
-                    0,
-              )
-              .toList();
-          final average = scores.isEmpty
-              ? 0
-              : scores.reduce((a, b) => a + b) / scores.length;
-          final totalMarks = submissions.isNotEmpty
-              ? (submissions.first.data()
-                        as Map<String, dynamic>)['totalMarks'] ??
-                    0
-              : 0;
+              // Sort: submitted first (by score desc), then in-progress
+              final sorted = [...submissions]
+                ..sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aSubmitted = aData['status'] == 'submitted';
+                  final bSubmitted = bData['status'] == 'submitted';
+                  if (aSubmitted != bSubmitted) return aSubmitted ? -1 : 1;
+                  final aScore =
+                      (aData['finalScore'] ?? aData['autoScore'] ?? 0) as num;
+                  final bScore =
+                      (bData['finalScore'] ?? bData['autoScore'] ?? 0) as num;
+                  return bScore.compareTo(aScore);
+                });
 
-          return Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                color: AppColors.surface,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _StatColumn(label: 'Submitted', value: '$submittedCount'),
-                    _StatColumn(
-                      label: 'Average',
-                      value: '${average.toStringAsFixed(1)} / $totalMarks',
-                    ),
-                    _StatColumn(
-                      label: 'Highest',
-                      value: scores.isEmpty
-                          ? '—'
-                          : '${scores.reduce((a, b) => a > b ? a : b)} / $totalMarks',
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  itemCount: sorted.length,
-                  itemBuilder: (context, i) {
-                    final data = sorted[i].data() as Map<String, dynamic>;
-                    final isSubmitted = data['status'] == 'submitted';
-                    final flags = (data['flags'] as List?) ?? [];
+              final submittedDocs = submissions
+                  .where(
+                    (d) =>
+                        (d.data() as Map<String, dynamic>)['status'] ==
+                        'submitted',
+                  )
+                  .toList();
+              final scores = submittedDocs
+                  .map(
+                    (d) =>
+                        ((d.data() as Map<String, dynamic>)['finalScore'] ??
+                                (d.data()
+                                    as Map<String, dynamic>)['autoScore'] ??
+                                0)
+                            as num,
+                  )
+                  .toList();
+              final average = scores.isEmpty
+                  ? 0
+                  : scores.reduce((a, b) => a + b) / scores.length;
+              final totalMarks = submissions.isNotEmpty
+                  ? (submissions.first.data()
+                            as Map<String, dynamic>)['totalMarks'] ??
+                        0
+                  : 0;
+              final pendingGradingCount = submittedDocs
+                  .where(
+                    (d) =>
+                        (d.data()
+                            as Map<String, dynamic>)['manualGradingComplete'] ==
+                        false,
+                  )
+                  .length;
 
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(data['studentId'])
-                          .get(),
-                      builder: (context, userSnap) {
-                        final userData =
-                            userSnap.data?.data() as Map<String, dynamic>?;
-                        final name = userData?['name'] ?? 'Unknown student';
-                        final email = userData?['email'] ?? '';
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: ListTile(
-                            title: Text(name),
-                            subtitle: Text(
-                              flags.isNotEmpty
-                                  ? '$email  ·  ⚠️ ${flags.length} flag${flags.length == 1 ? '' : 's'}'
-                                  : email,
-                              style: flags.isNotEmpty
-                                  ? const TextStyle(color: AppColors.warning)
-                                  : null,
+              return Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    color: AppColors.surface,
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _StatColumn(
+                              label: 'Submitted',
+                              value: '${submittedDocs.length}',
                             ),
-                            trailing: isSubmitted
-                                ? Text(
-                                    '${data['autoScore']} / ${data['totalMarks']}',
-                                    style: AppTypography.body.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  )
-                                : const Chip(label: Text('In Progress')),
+                            _StatColumn(
+                              label: 'Average',
+                              value:
+                                  '${average.toStringAsFixed(1)} / $totalMarks',
+                            ),
+                            _StatColumn(
+                              label: 'Highest',
+                              value: scores.isEmpty
+                                  ? '—'
+                                  : '${scores.reduce((a, b) => a > b ? a : b)} / $totalMarks',
+                            ),
+                          ],
+                        ),
+                        if (pendingGradingCount > 0) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningSurface,
+                              borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusPill,
+                              ),
+                            ),
+                            child: Text(
+                              '$pendingGradingCount submission${pendingGradingCount == 1 ? '' : 's'} awaiting manual grading',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.warning,
+                              ),
+                            ),
                           ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      itemCount: sorted.length,
+                      itemBuilder: (context, i) {
+                        final data = sorted[i].data() as Map<String, dynamic>;
+                        final isSubmitted = data['status'] == 'submitted';
+                        final flags = (data['flags'] as List?) ?? [];
+                        final finalScore =
+                            (data['finalScore'] ?? data['autoScore'] ?? 0)
+                                as num;
+                        final total = (data['totalMarks'] ?? 0) as num;
+                        final percent = total > 0
+                            ? (finalScore / total * 100)
+                            : 0.0;
+                        final grade = ExamService.gradeForPercent(
+                          gradeBands,
+                          percent.toDouble(),
+                        );
+                        final gradingPending =
+                            data['manualGradingComplete'] == false;
+
+                        return FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(data['studentId'])
+                              .get(),
+                          builder: (context, userSnap) {
+                            final userData =
+                                userSnap.data?.data() as Map<String, dynamic>?;
+                            final name = userData?['name'] ?? 'Unknown student';
+                            final email = userData?['email'] ?? '';
+
+                            final subtitleParts = <String>[email];
+                            if (flags.isNotEmpty) {
+                              subtitleParts.add(
+                                '⚠️ ${flags.length} flag${flags.length == 1 ? '' : 's'}',
+                              );
+                            }
+                            if (gradingPending) {
+                              subtitleParts.add('grading pending');
+                            }
+
+                            return Card(
+                              margin: const EdgeInsets.only(
+                                bottom: AppSpacing.sm,
+                              ),
+                              child: ListTile(
+                                title: Text(name),
+                                subtitle: Text(
+                                  subtitleParts.join('  ·  '),
+                                  style: (flags.isNotEmpty || gradingPending)
+                                      ? const TextStyle(
+                                          color: AppColors.warning,
+                                        )
+                                      : null,
+                                ),
+                                trailing: isSubmitted
+                                    ? Text(
+                                        '$finalScore / $total  ($grade)',
+                                        style: AppTypography.score,
+                                      )
+                                    : const Chip(label: Text('In Progress')),
+                              ),
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
-              ),
-            ],
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

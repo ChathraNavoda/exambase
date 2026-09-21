@@ -35,12 +35,20 @@ class _TakeExamScreenState extends State<TakeExamScreen>
   List<ShuffledQuestion> _shuffled = [];
   int _currentIndex = 0;
   final Map<String, int> _answers = {}; // questionId -> ORIGINAL option index
+  final Map<String, TextEditingController> _shortAnswerControllers = {};
   bool _isLoading = true;
   bool _isSubmitting = false;
   int _tabSwitchCount = 0;
 
   late Timer _timer;
   late int _secondsRemaining;
+
+  TextEditingController _controllerFor(String questionId) {
+    return _shortAnswerControllers.putIfAbsent(
+      questionId,
+      () => TextEditingController(),
+    );
+  }
 
   @override
   void initState() {
@@ -58,14 +66,9 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     _loadQuestions();
     _startTimer();
 
-    // If time already ran out while they were away, submit immediately.
     if (_secondsRemaining <= 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _submit(auto: true));
     } else if (widget.startedAt != null) {
-      // Resuming with time left — be transparent that the clock kept
-      // running and previous selections on this attempt weren't saved.
-      // This is itself a mild deterrent: a student weighing "refresh to
-      // go look something up" sees plainly that it isn't a free pause.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -100,10 +103,12 @@ class _TakeExamScreenState extends State<TakeExamScreen>
   }
 
   void _showTabSwitchWarning() {
+    if (!mounted || _isSubmitting) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Warning'),
         content: Text(
           'You left the exam screen ($_tabSwitchCount time${_tabSwitchCount == 1 ? '' : 's'}). '
@@ -111,7 +116,7 @@ class _TakeExamScreenState extends State<TakeExamScreen>
         ),
         actions: [
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Continue Exam'),
           ),
         ],
@@ -164,16 +169,28 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     setState(() => _isSubmitting = true);
     _timer.cancel();
 
-    await _submissionService.submitExam(
+    final shortAnswers = <String, String>{
+      for (final s in _shuffled.where((s) => s.original.isShortAnswer))
+        s.original.id!: _controllerFor(s.original.id!).text.trim(),
+    };
+
+    final result = await _submissionService.submitExam(
       submissionId: widget.submissionId,
+      exam: widget.exam,
       questions: _shuffled.map((s) => s.original).toList(),
       answers: _answers,
+      shortAnswers: shortAnswers,
     );
 
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => ExamResultScreen(autoSubmitted: auto)),
+      MaterialPageRoute(
+        builder: (_) => ExamResultScreen(
+          autoSubmitted: auto,
+          hasShortAnswer: result['hasShortAnswer'] == true,
+        ),
+      ),
     );
   }
 
@@ -181,6 +198,9 @@ class _TakeExamScreenState extends State<TakeExamScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer.cancel();
+    for (final c in _shortAnswerControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -196,12 +216,17 @@ class _TakeExamScreenState extends State<TakeExamScreen>
     }
 
     final sq = _shuffled[_currentIndex];
+    final isShort = sq.original.isShortAnswer;
     final selectedOriginal = _answers[sq.original.id];
     final selectedDisplayedPosition = selectedOriginal == null
         ? null
         : sq.optionOrder.indexOf(selectedOriginal);
     final isLast = _currentIndex == _shuffled.length - 1;
     final displayedOptions = sq.displayedOptions;
+
+    final canProceed = isShort
+        ? _controllerFor(sq.original.id!).text.trim().isNotEmpty
+        : selectedDisplayedPosition != null;
 
     return PopScope(
       canPop: false,
@@ -243,34 +268,43 @@ class _TakeExamScreenState extends State<TakeExamScreen>
               const SizedBox(height: AppSpacing.xl),
               Text(sq.original.questionText, style: AppTypography.heading2),
               const SizedBox(height: AppSpacing.lg),
-              ...List.generate(displayedOptions.length, (i) {
-                final isSelected = selectedDisplayedPosition == i;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: OutlinedButton(
-                    onPressed: () => _selectAnswer(i),
-                    style: OutlinedButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      backgroundColor: isSelected
-                          ? AppColors.primaryBlue.withValues(alpha: 0.08)
-                          : null,
-                      side: BorderSide(
-                        color: isSelected
-                            ? AppColors.primaryBlue
-                            : AppColors.border,
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    child: Text(displayedOptions[i]),
+              if (isShort)
+                TextField(
+                  controller: _controllerFor(sq.original.id!),
+                  maxLines: 6,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Your answer',
+                    alignLabelWithHint: true,
                   ),
-                );
-              }),
+                )
+              else
+                ...List.generate(displayedOptions.length, (i) {
+                  final isSelected = selectedDisplayedPosition == i;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: OutlinedButton(
+                      onPressed: () => _selectAnswer(i),
+                      style: OutlinedButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        backgroundColor: isSelected
+                            ? AppColors.primaryBlue.withValues(alpha: 0.08)
+                            : null,
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.primaryBlue
+                              : AppColors.border,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Text(displayedOptions[i]),
+                    ),
+                  );
+                }),
               const Spacer(),
               ElevatedButton(
-                onPressed: (_isSubmitting || selectedDisplayedPosition == null)
-                    ? null
-                    : _next,
+                onPressed: (_isSubmitting || !canProceed) ? null : _next,
                 child: Text(isLast ? 'Submit Exam' : 'Next Question'),
               ),
             ],
@@ -283,7 +317,13 @@ class _TakeExamScreenState extends State<TakeExamScreen>
 
 class ExamResultScreen extends StatelessWidget {
   final bool autoSubmitted;
-  const ExamResultScreen({super.key, required this.autoSubmitted});
+  final bool hasShortAnswer;
+
+  const ExamResultScreen({
+    super.key,
+    required this.autoSubmitted,
+    this.hasShortAnswer = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +345,14 @@ class ExamResultScreen extends StatelessWidget {
             const Text(
               'Your response has been recorded.\nResults will be released by your instructor.',
             ),
+            if (hasShortAnswer) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Some of your answers require manual grading by your instructor.',
+                style: TextStyle(color: AppColors.warning),
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton(
               onPressed: () =>

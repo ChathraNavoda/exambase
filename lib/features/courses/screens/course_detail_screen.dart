@@ -12,6 +12,7 @@ import '../../../shared/widgets/copyable_code.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../exams/screens/create_exam_screen.dart';
 import '../../exams/screens/manage_questions_screen.dart';
+import '../../exams/screens/manual_grading_screen.dart';
 import '../../exams/screens/results_overview_screen.dart';
 
 class CourseDetailScreen extends StatelessWidget {
@@ -205,6 +206,20 @@ class CourseDetailScreen extends StatelessWidget {
                                     },
                                   ),
                                   _ActionIcon(
+                                    icon: Icons.grading_outlined,
+                                    tooltip: 'Grade',
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ManualGradingScreen(
+                                            examId: exam['id'],
+                                            examTitle: exam['title'] ?? '',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _ActionIcon(
                                     icon: Icons.bar_chart_outlined,
                                     tooltip: 'Results',
                                     onTap: () {
@@ -232,6 +247,61 @@ class CourseDetailScreen extends StatelessWidget {
                                       final closeAt =
                                           (exam['closeAt'] as Timestamp)
                                               .toDate();
+
+                                      if (!resultsPublished) {
+                                        final ungradedCount =
+                                            (await FirebaseFirestore.instance
+                                                    .collection('submissions')
+                                                    .where(
+                                                      'activityId',
+                                                      isEqualTo: exam['id'],
+                                                    )
+                                                    .where(
+                                                      'manualGradingComplete',
+                                                      isEqualTo: false,
+                                                    )
+                                                    .get())
+                                                .docs
+                                                .length;
+
+                                        if (ungradedCount > 0 &&
+                                            context.mounted) {
+                                          final proceed = await showDialog<bool>(
+                                            context: context,
+                                            builder: (_) => AlertDialog(
+                                              title: const Text(
+                                                'Ungraded Submissions',
+                                              ),
+                                              content: Text(
+                                                '$ungradedCount submission${ungradedCount == 1 ? '' : 's'} '
+                                                'still need manual grading. Release results anyway?',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
+                                                  child: const Text(
+                                                    'Release Anyway',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (proceed != true) return;
+                                        }
+                                      }
+
                                       try {
                                         await examService.togglePublishResults(
                                           exam['id'],

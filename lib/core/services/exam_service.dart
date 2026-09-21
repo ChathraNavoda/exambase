@@ -4,22 +4,27 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ExamQuestion {
   final String? id;
   final int order;
+  final String type; // 'mcq' | 'short_answer'
   final String questionText;
-  final List<String> options;
-  final int correctOptionIndex;
-  final int marks;
+  final List<String> options; // empty for short_answer
+  final int correctOptionIndex; // -1 for short_answer
+  final num marks;
 
   ExamQuestion({
     this.id,
     required this.order,
+    this.type = 'mcq',
     required this.questionText,
-    required this.options,
-    required this.correctOptionIndex,
+    this.options = const [],
+    this.correctOptionIndex = -1,
     required this.marks,
   });
 
+  bool get isShortAnswer => type == 'short_answer';
+
   Map<String, dynamic> toMap() => {
     'order': order,
+    'type': type,
     'questionText': questionText,
     'options': options,
     'correctOptionIndex': correctOptionIndex,
@@ -31,10 +36,11 @@ class ExamQuestion {
     return ExamQuestion(
       id: doc.id,
       order: data['order'] ?? 0,
+      type: data['type'] ?? 'mcq', // old questions default to mcq
       questionText: data['questionText'] ?? '',
       options: List<String>.from(data['options'] ?? []),
-      correctOptionIndex: data['correctOptionIndex'] ?? 0,
-      marks: data['marks'] ?? 1,
+      correctOptionIndex: data['correctOptionIndex'] ?? -1,
+      marks: (data['marks'] ?? 1) as num,
     );
   }
 }
@@ -42,11 +48,28 @@ class ExamQuestion {
 class ExamService {
   final _firestore = FirebaseFirestore.instance;
 
-  /// Creates a new exam (activity doc) and returns its ID.
-  ///
-  /// Validates that the [openAt]–[closeAt] window is at least as long as
-  /// [durationMinutes], so every student who starts can finish. See app
-  /// discussion: the last fair start time is `closeAt - durationMinutes`.
+  static const List<Map<String, dynamic>> defaultGradeBands = [
+    {'label': 'A', 'minPercent': 75},
+    {'label': 'B', 'minPercent': 65},
+    {'label': 'C', 'minPercent': 55},
+    {'label': 'S', 'minPercent': 40},
+    {'label': 'F', 'minPercent': 0},
+  ];
+
+  /// Returns the label of the highest band the given percentage qualifies
+  /// for. Bands are sorted defensively, so order in Firestore doesn't matter.
+  static String gradeForPercent(List<dynamic> bands, double percent) {
+    final sorted = [...bands]
+      ..sort(
+        (a, b) => (b['minPercent'] as num).compareTo(a['minPercent'] as num),
+      );
+    for (final band in sorted) {
+      if (percent >= (band['minPercent'] as num))
+        return band['label'] as String;
+    }
+    return sorted.isNotEmpty ? sorted.last['label'] as String : '-';
+  }
+
   Future<Map<String, dynamic>> createExam({
     required String courseId,
     required String title,
@@ -56,6 +79,9 @@ class ExamService {
     required DateTime closeAt,
     required String examCode,
     required String createdBy,
+    bool negativeMarkingEnabled = false,
+    double negativeMarkingFraction = 0.25,
+    List<Map<String, dynamic>>? gradeBands,
   }) async {
     final windowMinutes = closeAt.difference(openAt).inMinutes;
     if (windowMinutes < durationMinutes) {
@@ -70,7 +96,6 @@ class ExamService {
         'students to actually start. Add a few extra minutes as buffer.',
       );
     }
-
     if (closeAt.isBefore(DateTime.now())) {
       throw Exception('Close time must be in the future.');
     }
@@ -82,20 +107,22 @@ class ExamService {
       'instructions': instructions,
       'durationMinutes': durationMinutes,
       'attemptsAllowed': 1,
-      'totalMarks': 0, // updated as questions are added
+      'totalMarks': 0,
       'openAt': Timestamp.fromDate(openAt),
       'closeAt': Timestamp.fromDate(closeAt),
       'examCode': examCode,
       'isPublished': false,
+      'resultsPublished': false,
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
+      'negativeMarkingEnabled': negativeMarkingEnabled,
+      'negativeMarkingFraction': negativeMarkingFraction,
+      'gradeBands': gradeBands ?? defaultGradeBands,
     });
 
     return {'id': doc.id};
   }
 
-  /// Generates a short, readable random code like "A7X2K9".
-  /// Excludes visually confusing characters (0/O, 1/I).
   String generateExamCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rand = Random.secure();
@@ -109,15 +136,14 @@ class ExamService {
         .collection('questions')
         .add(question.toMap());
 
-    // Keep totalMarks in sync
     final questionsSnap = await _firestore
         .collection('activities')
         .doc(activityId)
         .collection('questions')
         .get();
-    final total = questionsSnap.docs.fold<int>(
+    final total = questionsSnap.docs.fold<num>(
       0,
-      (sum, d) => sum + (d.data()['marks'] as int? ?? 0),
+      (sum, d) => sum + ((d.data()['marks'] as num?) ?? 0),
     );
     await _firestore.collection('activities').doc(activityId).update({
       'totalMarks': total,
@@ -140,6 +166,33 @@ class ExamService {
     });
   }
 
+  Future<void> togglePublishResults(
+    String activityId,
+    bool published,
+    DateTime closeAt,
+  ) async {
+    if (published && DateTime.now().isBefore(closeAt)) {
+      throw Exception(
+        'You can only release results after the exam window closes.',
+      );
+    }
+    await _firestore.collection('activities').doc(activityId).update({
+      'resultsPublished': published,
+    });
+  }
+
+  Future<void> deleteExam(String activityId) async {
+    final questionsSnap = await _firestore
+        .collection('activities')
+        .doc(activityId)
+        .collection('questions')
+        .get();
+    for (final doc in questionsSnap.docs) {
+      await doc.reference.delete();
+    }
+    await _firestore.collection('activities').doc(activityId).delete();
+  }
+
   Stream<List<Map<String, dynamic>>> watchExamsForInstructor(String uid) {
     return _firestore
         .collection('activities')
@@ -160,35 +213,5 @@ class ExamService {
         .map(
           (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
         );
-  }
-
-  Future<void> deleteExam(String activityId) async {
-    // Delete all questions in the subcollection first (Firestore doesn't cascade-delete)
-    final questionsSnap = await _firestore
-        .collection('activities')
-        .doc(activityId)
-        .collection('questions')
-        .get();
-    for (final doc in questionsSnap.docs) {
-      await doc.reference.delete();
-    }
-    await _firestore.collection('activities').doc(activityId).delete();
-  }
-
-  /// Only allows releasing results after the exam's close time has passed.
-  /// Throws if called too early.
-  Future<void> togglePublishResults(
-    String activityId,
-    bool published,
-    DateTime closeAt,
-  ) async {
-    if (published && DateTime.now().isBefore(closeAt)) {
-      throw Exception(
-        'You can only release results after the exam window closes.',
-      );
-    }
-    await _firestore.collection('activities').doc(activityId).update({
-      'resultsPublished': published,
-    });
   }
 }

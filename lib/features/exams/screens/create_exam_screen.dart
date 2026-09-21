@@ -27,6 +27,12 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  bool _negativeMarkingEnabled = false;
+  final _negativeFractionController = TextEditingController(text: '0.25');
+  List<Map<String, dynamic>> _gradeBands = List.from(
+    ExamService.defaultGradeBands,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +122,10 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
         closeAt: _closeAt!,
         examCode: _examCodeController.text.trim().toUpperCase(),
         createdBy: uid,
+        negativeMarkingEnabled: _negativeMarkingEnabled,
+        negativeMarkingFraction:
+            double.tryParse(_negativeFractionController.text) ?? 0.25,
+        gradeBands: _gradeBands,
       );
 
       if (mounted) {
@@ -200,7 +210,75 @@ class _CreateExamScreenState extends State<CreateExamScreen> {
                       style: AppTypography.bodySecondary,
                     ),
                   ),
-
+                Text('Marking', style: AppTypography.heading2),
+                const SizedBox(height: AppSpacing.sm),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Negative marking'),
+                  subtitle: const Text('Deduct marks for wrong answers'),
+                  value: _negativeMarkingEnabled,
+                  onChanged: (val) =>
+                      setState(() => _negativeMarkingEnabled = val),
+                ),
+                if (_negativeMarkingEnabled)
+                  AppTextField(
+                    controller: _negativeFractionController,
+                    label: 'Deduction per wrong answer (e.g. 0.25 = ¼ mark)',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.lg),
+                Text('Grade Bands', style: AppTypography.heading2),
+                const SizedBox(height: AppSpacing.sm),
+                ..._gradeBands.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final band = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: band['label'],
+                            decoration: const InputDecoration(
+                              labelText: 'Grade',
+                            ),
+                            onChanged: (val) => _gradeBands[i]['label'] = val,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: '${band['minPercent']}',
+                            decoration: const InputDecoration(
+                              labelText: 'Min %',
+                            ),
+                            keyboardType: TextInputType.number,
+                            onChanged: (val) => _gradeBands[i]['minPercent'] =
+                                num.tryParse(val) ?? 0,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: AppColors.error,
+                          ),
+                          onPressed: () =>
+                              setState(() => _gradeBands.removeAt(i)),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                TextButton.icon(
+                  onPressed: () => setState(
+                    () => _gradeBands.add({'label': '', 'minPercent': 0}),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add band'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 const SizedBox(height: AppSpacing.lg),
                 Text('Enrollment', style: AppTypography.heading2),
                 const SizedBox(height: AppSpacing.sm),

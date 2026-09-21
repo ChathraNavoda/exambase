@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../core/services/exam_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -70,17 +71,45 @@ class CourseResultsScreen extends StatelessWidget {
                   if (exam == null) return const SizedBox.shrink();
 
                   final published = exam['resultsPublished'] == true;
+                  final gradingPending = sub['manualGradingComplete'] == false;
+
+                  final finalScore =
+                      (sub['finalScore'] ?? sub['autoScore'] ?? 0) as num;
+                  final total = (sub['totalMarks'] ?? 0) as num;
+                  final percent = total > 0 ? (finalScore / total * 100) : 0.0;
+                  final gradeBands =
+                      (exam['gradeBands'] as List?) ??
+                      ExamService.defaultGradeBands;
+                  final grade = ExamService.gradeForPercent(
+                    gradeBands,
+                    percent.toDouble(),
+                  );
+
+                  Widget trailing;
+                  if (!published) {
+                    trailing = Text(
+                      'Pending',
+                      style: AppTypography.bodySecondary,
+                    );
+                  } else if (gradingPending) {
+                    trailing = Text(
+                      'Grading pending',
+                      style: AppTypography.bodySecondary.copyWith(
+                        color: AppColors.warning,
+                      ),
+                    );
+                  } else {
+                    trailing = Text(
+                      '$finalScore / $total  ($grade)',
+                      style: AppTypography.score,
+                    );
+                  }
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: ListTile(
                       title: Text(exam['title'] ?? ''),
-                      trailing: published
-                          ? Text(
-                              '${sub['autoScore']} / ${sub['totalMarks']}',
-                              style: AppTypography.score,
-                            )
-                          : Text('Pending', style: AppTypography.bodySecondary),
+                      trailing: trailing,
                     ),
                   );
                 },
